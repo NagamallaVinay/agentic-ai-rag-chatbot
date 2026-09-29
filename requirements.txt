@@ -1,0 +1,11 @@
+pypdf
+langchain
+langchain-text-splitters
+langgraph
+langchain-google-genai
+pinecone
+fastapi
+uvicorn
+streamlit
+python-dotenv
+sentence-transformers==6.1.0
