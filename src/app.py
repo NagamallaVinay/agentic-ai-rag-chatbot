@@ -1,4 +1,10 @@
-import json
+import os
+import sys
+
+# Add the project root to Python's import path.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
+
 import streamlit as st
 
 from src.graph import run_query
@@ -10,15 +16,13 @@ st.set_page_config(
     layout="wide",
 )
 
-
 st.title("🤖 Agentic AI Knowledge Assistant")
 st.caption("LangGraph + Pinecone + Gemini RAG")
 
-st.markdown(
-    """
-    Ask questions about the **Agentic AI eBook**.
-    Answers are generated only from the retrieved knowledge-base context.
-    """
+st.write(
+    "Ask questions about Agentic AI. "
+    "The assistant retrieves relevant knowledge-base content, "
+    "generates a grounded answer, and provides a confidence score."
 )
 
 
@@ -30,34 +34,20 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-        if message["role"] == "assistant" and "result" in message:
-            result = message["result"]
+        if message["role"] == "assistant" and "confidence" in message:
+            st.caption(
+                f"Confidence score: {message['confidence']:.2f}"
+            )
 
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.metric(
-                    "Confidence",
-                    f"{result['confidence_score']:.0%}",
-                )
-
-            with col2:
-                st.metric(
-                    "Retrieved Chunks",
-                    len(result["retrieved_context_chunks"]),
-                )
-
-            with st.expander("Retrieved Context"):
+            with st.expander("Retrieved context"):
                 for i, chunk in enumerate(
-                    result["retrieved_context_chunks"],
-                    start=1,
+                    message["context"], start=1
                 ):
                     st.markdown(f"**Chunk {i}**")
                     st.write(chunk)
 
 
-query = st.chat_input("Ask about Agentic AI...")
-
+query = st.chat_input("Ask a question about Agentic AI...")
 
 if query:
     st.session_state.messages.append(
@@ -71,37 +61,26 @@ if query:
         st.markdown(query)
 
     with st.chat_message("assistant"):
-        with st.spinner("Searching the Agentic AI knowledge base..."):
+        with st.spinner("Searching the knowledge base..."):
             result = run_query(query)
 
-        st.markdown(result["final_answer"])
+        answer = result["final_answer"]
+        confidence = result["confidence_score"]
+        context = result["retrieved_context_chunks"]
 
-        col1, col2 = st.columns(2)
+        st.markdown(answer)
+        st.caption(f"Confidence score: {confidence:.2f}")
 
-        with col1:
-            st.metric(
-                "Confidence",
-                f"{result['confidence_score']:.0%}",
-            )
-
-        with col2:
-            st.metric(
-                "Retrieved Chunks",
-                len(result["retrieved_context_chunks"]),
-            )
-
-        with st.expander("Retrieved Context"):
-            for i, chunk in enumerate(
-                result["retrieved_context_chunks"],
-                start=1,
-            ):
+        with st.expander("Retrieved context"):
+            for i, chunk in enumerate(context, start=1):
                 st.markdown(f"**Chunk {i}**")
                 st.write(chunk)
 
-        st.session_state.messages.append(
-            {
-                "role": "assistant",
-                "content": result["final_answer"],
-                "result": result,
-            }
-        )
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": answer,
+            "confidence": confidence,
+            "context": context,
+        }
+    )
